@@ -1,0 +1,67 @@
+---
+
+########## Configure for Clients ####################
+- hosts: 127.0.0.1
+  tasks: 
+    - name: "Install package on Debian" 
+      apt: 
+        name: tigervnc-viewer
+        update_cache: yes 
+      when: ansible_facts['distribution'] == "Debian" 
+  
+    - name: "Install package on Centos" 
+      yum: 
+        name: tigervnc 
+        update_cache: yes 
+      when: ansible_facts['distribution'] == "CentOS"
+#####################################################
+
+
+########### Configure for servers ###################
+- hosts: vncservers
+  vars_prompt:
+    - name: vncuser_password
+      prompt: "Enter password for vncuser on remote server"
+      encrypt: "sha512_crypt"
+      private: yes
+
+    - name: vnc_client_password
+      prompt: "Enter password for VNC client"
+      private: yes
+
+  tasks: 
+    - name: "Install package on Debian Server" 
+      apt:
+        name: vnc4server
+        update_cache: yes
+      when: ansible_facts['distribution'] == "Debian" 
+
+    - name: "Install package on Centos Server"
+      apt:
+        name: "vnc4server"
+        update_cache: yes
+      when: ansible_facts['distribution'] == "Debian"
+ 
+    - name: "Adding vncuser" 
+      user: 
+        name: vncuser
+        password: "{{ vncuser_password }}"
+        comment: ONLY FOR SYSADMINS! 
+        create_home: yes 
+
+    - name: "Copying password on server"
+      shell: echo {{ vnc_client_password }} | vncpasswd -f >> /home/vncuser/.vnc/passwd
+ 
+    - name: "Set the owner for a '.vnc' directory" 
+      file: 
+        path: /home/vncuser/.vnc
+        owner: vncuser 
+        group: vncuser
+        recurse: yes
+
+    - name: "Run vncserver" 
+      shell: "vncserver -passwd /home/vncuser/.vnc/passwd -verbose" 
+      become_user: vncuser 
+####################################################
+
+
